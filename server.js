@@ -1,10 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 // On importe l'objet contenant nos fonctions depuis database.js
-const db = require('./database.js'); 
+const db = require('./database.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Initialiser la base de données au démarrage
+db.initDatabase().catch(console.error);
 
 // --- Middlewares ---
 app.use(cors());
@@ -12,7 +15,7 @@ app.use(express.json()); // Pour comprendre le JSON envoyé par l'application
 
 // --- Routes de l'API ---
 
-app.post('/activate', (req, res) => {
+app.post('/activate', async (req, res) => {
     const { licenseKey, machineId, hardwareFingerprint, timestamp } = req.body;
     const clientIP = req.ip || req.connection.remoteAddress;
 
@@ -25,25 +28,25 @@ app.post('/activate', (req, res) => {
 
     try {
         // Vérifier l'expiration de la licence
-        const license = db.checkLicenseExpiration(licenseKey);
+        const license = await db.checkLicenseExpiration(licenseKey);
 
         if (!license) {
-            db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'ACTIVATION_FAILED', false, clientIP);
+            await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'ACTIVATION_FAILED', false, clientIP);
             return res.json({ success: false, message: 'Clé de licence invalide ou expirée.' });
         }
 
         // Vérifier si déjà activée
         if (license.status === 'active') {
             // Même machine et même empreinte = OK
-            if (license.machineId === machineId && license.hardwareFingerprint === hardwareFingerprint) {
-                db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'REACTIVATION', true, clientIP);
+            if (license.machineid === machineId && license.hardwarefingerprint === hardwareFingerprint) {
+                await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'REACTIVATION', true, clientIP);
                 return res.json({ success: true, message: 'Licence déjà active sur cette machine.' });
             } else {
                 // Tentative d'utilisation sur une autre machine
-                db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'FRAUD_ATTEMPT', false, clientIP);
+                await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'FRAUD_ATTEMPT', false, clientIP);
 
                 // Vérifier l'historique pour détecter des tentatives suspectes
-                const history = db.getSuspiciousActivities(licenseKey);
+                const history = await db.getSuspiciousActivities(licenseKey);
                 const recentFraudAttempts = history.filter(h =>
                     h.action === 'FRAUD_ATTEMPT' &&
                     Date.now() - new Date(h.timestamp).getTime() < 24 * 60 * 60 * 1000 // 24h
@@ -62,8 +65,8 @@ app.post('/activate', (req, res) => {
         }
 
         // Vérifier le nombre de transferts autorisés
-        if (license.transferCount >= license.maxTransfers) {
-            db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'TRANSFER_LIMIT_EXCEEDED', false, clientIP);
+        if (license.transfercount >= license.maxtransfers) {
+            await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'TRANSFER_LIMIT_EXCEEDED', false, clientIP);
             return res.json({
                 success: false,
                 message: 'Limite de transferts de licence atteinte.'
@@ -71,24 +74,24 @@ app.post('/activate', (req, res) => {
         }
 
         // Activer la licence
-        const result = db.activateLicense(licenseKey, machineId, hardwareFingerprint);
+        const result = await db.activateLicense(licenseKey, machineId, hardwareFingerprint);
 
         if (result.changes > 0) {
-            db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'ACTIVATION_SUCCESS', true, clientIP);
+            await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'ACTIVATION_SUCCESS', true, clientIP);
             res.json({ success: true, message: 'Licence activée avec succès.' });
         } else {
-            db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'ACTIVATION_FAILED', false, clientIP);
+            await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'ACTIVATION_FAILED', false, clientIP);
             res.json({ success: false, message: 'Échec de l\'activation.' });
         }
 
     } catch (error) {
         console.error("Erreur interne du serveur lors de l'activation :", error);
-        db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'SERVER_ERROR', false, clientIP);
+        await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'SERVER_ERROR', false, clientIP);
         res.status(500).json({ success: false, message: 'Erreur interne du serveur.' });
     }
 });
 
-app.post('/validate', (req, res) => {
+app.post('/validate', async (req, res) => {
     const { licenseKey, machineId, hardwareFingerprint } = req.body;
     const clientIP = req.ip || req.connection.remoteAddress;
 
@@ -98,33 +101,33 @@ app.post('/validate', (req, res) => {
 
     try {
         // Vérifier l'expiration
-        const license = db.checkLicenseExpiration(licenseKey);
+        const license = await db.checkLicenseExpiration(licenseKey);
 
         if (!license) {
-            db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'VALIDATION_FAILED', false, clientIP);
+            await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'VALIDATION_FAILED', false, clientIP);
             return res.json({ valid: false, message: 'Licence invalide ou expirée.' });
         }
 
-        // Vérifier la correspondance complète
+        // Vérifier la correspondance complète (attention aux noms de colonnes PostgreSQL)
         if (license.status === 'active' &&
-            license.machineId === machineId &&
-            license.hardwareFingerprint === hardwareFingerprint) {
+            license.machineid === machineId &&
+            license.hardwarefingerprint === hardwareFingerprint) {
 
             // Mettre à jour les statistiques de validation
-            db.validateLicense(licenseKey, machineId, hardwareFingerprint);
+            await db.validateLicense(licenseKey, machineId, hardwareFingerprint);
 
             // Vérifier si le nombre de validations n'est pas suspect
-            if (license.validationCount > license.maxValidations) {
+            if (license.validationcount > license.maxvalidations) {
                 console.log(`ALERTE: Nombre de validations suspect pour la licence ${licenseKey}`);
                 return res.json({ valid: false, message: 'Limite de validations atteinte.' });
             }
 
             res.json({
                 valid: true,
-                remainingValidations: license.maxValidations - license.validationCount
+                remainingValidations: license.maxvalidations - license.validationcount
             });
         } else {
-            db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'VALIDATION_FAILED', false, clientIP);
+            await db.addActivationHistory(licenseKey, machineId, hardwareFingerprint, 'VALIDATION_FAILED', false, clientIP);
             res.json({ valid: false, message: 'Licence invalide pour cette machine.' });
         }
     } catch (error) {
