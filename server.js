@@ -6,8 +6,11 @@ const db = require('./database.js');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialiser la base de données au démarrage
-db.initDatabase().catch(console.error);
+// Initialiser la base de données au démarrage (sans crash si échec)
+db.initDatabase().catch(error => {
+    console.error('❌ Erreur base de données:', error.message);
+    console.log('⚠️ Le serveur continue sans base de données');
+});
 
 // --- Middlewares ---
 app.use(cors());
@@ -137,9 +140,18 @@ app.post('/validate', async (req, res) => {
 });
 
 // Route de santé pour Railway
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+    let dbStatus = 'disconnected';
+    try {
+        await db.getLicenseByKey('test-health-check');
+        dbStatus = 'connected';
+    } catch (error) {
+        dbStatus = 'disconnected';
+    }
+
     res.json({
         status: 'OK',
+        database: dbStatus,
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         service: 'GestionPro License Server'
