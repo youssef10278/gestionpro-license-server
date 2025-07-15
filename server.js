@@ -4,7 +4,8 @@ const cors = require('cors');
 const db = require('./database.js');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
+console.log(`🔍 PORT configuré: ${port}`);
 
 // Initialiser la base de données au démarrage (sans crash si échec)
 db.initDatabase().catch(error => {
@@ -169,8 +170,10 @@ app.get('/', (req, res) => {
 });
 
 // --- Démarrage du serveur ---
+console.log(`🔍 Tentative de démarrage sur port ${port}...`);
 app.listen(port, '0.0.0.0', () => {
     console.log(`🚀 Serveur de licence démarré sur le port ${port}`);
     console.log(`🌍 Environnement: ${process.env.NODE_ENV || 'development'}`);
     console.log(`⚡ Railway ready!`);
+    console.log(`🔗 URL: http://0.0.0.0:${port}`);
 });
