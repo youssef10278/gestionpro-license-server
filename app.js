@@ -1,4 +1,10 @@
 // Point d'entrée pour Railway - Copie du contenu de server.js
+console.log('🔥 DÉMARRAGE APP.JS - NOTRE CODE S\'EXÉCUTE !');
+console.log('🔍 Variables d\'environnement:');
+console.log('   PORT:', process.env.PORT);
+console.log('   NODE_ENV:', process.env.NODE_ENV);
+console.log('   DATABASE_URL:', process.env.DATABASE_URL ? '✅ Définie' : '❌ Non définie');
+
 const express = require('express');
 const cors = require('cors');
 // On importe l'objet contenant nos fonctions depuis database.js
