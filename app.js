@@ -11,7 +11,7 @@ const cors = require('cors');
 const db = require('./database.js');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 console.log(`🔍 PORT configuré: ${port}`);
 
 // Initialiser la base de données au démarrage (sans crash si échec)
