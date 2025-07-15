@@ -9,6 +9,8 @@ const pool = new Pool({
 // Fonction pour initialiser la base de données PostgreSQL
 async function initDatabase() {
     console.log("Initialisation de la base de données PostgreSQL...");
+    console.log("🔍 DATABASE_URL:", process.env.DATABASE_URL ? "✅ Définie" : "❌ Non définie");
+    console.log("🔍 NODE_ENV:", process.env.NODE_ENV);
 
     try {
         // Table des licences avec sécurité renforcée
