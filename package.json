@@ -1,5 +1,5 @@
 {
-  "name": "gestionpro-license-server",
+  "name": "nodejs-app",
   "version": "1.0.0",
   "description": "Serveur de licences sécurisé pour GestionPro",
   "main": "server.js",
